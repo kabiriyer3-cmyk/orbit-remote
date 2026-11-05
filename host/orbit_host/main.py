@@ -148,6 +148,7 @@ def main(argv=None) -> int:
 
         return run_ui(core, url, start_hidden=args.minimized, smoke=args.smoke)
     finally:
+        core.shutdown()
         server.stop()
         try:
             _instance_file().unlink()

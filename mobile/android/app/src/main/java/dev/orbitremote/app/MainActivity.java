@@ -103,6 +103,11 @@ public class MainActivity extends BridgeActivity {
 
     private void setupWebView() {
         applyTextZoom();
+        if (bridge != null && bridge.getWebView() != null) {
+            // PC sound is only played after the user turns it on in a session, so the WebView
+            // may resume the remembered choice on reconnect without waiting for another tap.
+            bridge.getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
+        }
         bridge.addWebViewListener(new WebViewListener() {
             @Override
             public void onPageCommitVisible(WebView view, String url) {

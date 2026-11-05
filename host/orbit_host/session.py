@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("orbit.session")
 INPUT_TYPES = {"move", "rel", "btn", "wheel", "key", "combo", "text", "sys"}
 MAX_INFLIGHT = 2
+MAX_AUDIO_QUEUE = 6  # ~120 ms; older packets are dropped instead of building up lag
 
 
 def _clamp(value: Any, low: float, high: float, default: float = 0.0) -> float:
@@ -72,6 +73,10 @@ class Session:
         self._keys: set[str] = set()
         self._buttons: set[str] = set()
         self._authed = False
+        self.audio = False
+        self.audio_packets = 0
+        self._audio_queued = 0
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     # ---------------------------------------------------------------- wire
     async def _send_plain(self, data: bytes) -> None:
@@ -101,6 +106,7 @@ class Session:
     # ---------------------------------------------------------- lifecycle
     async def run(self) -> None:
         reason = ""
+        self._loop = asyncio.get_running_loop()
         try:
             first = await self._recv_json(timeout=180)
             if not first:
@@ -214,6 +220,7 @@ class Session:
         if self.closed:
             return
         self.closed = True
+        self._stop_audio()
         self.core.cancel_pending_for(self)
         if self._stream_task:
             self._stream_task.cancel()
@@ -257,6 +264,7 @@ class Session:
             "maxWidth": self.max_width,
             "viewOnly": self.view_only or not self.core.config.get("allow_input"),
             "trusted": self.trusted,
+            "audio": bool(self.core.config.get("allow_audio")),
         }
 
     def describe_for_host(self, now: float) -> dict[str, Any]:
@@ -270,7 +278,74 @@ class Session:
             "trusted": self.trusted,
             "frames": self.frames,
             "megabytes": round(self.bytes_sent / 1_048_576, 1),
+            "audio": self.audio,
         }
+
+    # --------------------------------------------------------------- audio
+    async def set_audio(self, on: bool, reason: str = "") -> None:
+        """Start or stop sending this PC's sound to the phone and tell the phone the result."""
+        if on and not self.core.config.get("allow_audio"):
+            on, reason = False, "disabled"
+        if on and not self.audio:
+            self.audio = True
+            self.core.audio.subscribe(self)
+            self.core.log(f"{self.device} is listening to this PC", "info")
+        elif not on:
+            self._stop_audio()
+        from .audio import CHANNELS, RATE
+
+        reply: dict[str, Any] = {"t": "audio", "on": self.audio, "rate": RATE, "channels": CHANNELS}
+        if reason:
+            reply["reason"] = reason
+        await self.send_json(reply)
+        self.core.changed()
+
+    def _stop_audio(self) -> None:
+        if self.audio:
+            self.audio = False
+            self.core.audio.unsubscribe(self)
+
+    def send_audio(self, packet: bytes) -> None:
+        """Called from the capture thread. Never blocks; drops audio rather than adding delay."""
+        loop = self._loop
+        if loop is None or self.closed or not self.audio or self.paused:
+            return
+        if self._audio_queued >= MAX_AUDIO_QUEUE:
+            return
+        self._audio_queued += 1
+        try:
+            loop.call_soon_threadsafe(self._schedule_audio, packet)
+        except RuntimeError:  # loop already closed
+            self._audio_queued -= 1
+
+    def _schedule_audio(self, packet: bytes) -> None:
+        asyncio.ensure_future(self._send_audio(packet))
+
+    async def _send_audio(self, packet: bytes) -> None:
+        try:
+            if self.audio and not self.closed:
+                await self._send_plain(packet)
+                self.audio_packets += 1
+        except Exception:
+            pass
+        finally:
+            self._audio_queued = max(0, self._audio_queued - 1)
+
+    def on_audio_unavailable(self, reason: str) -> None:
+        """Called from the capture thread when this PC has no sound device to record."""
+        loop = self._loop
+        if loop is None or self.closed:
+            return
+
+        def report() -> None:
+            self.audio = False
+            asyncio.ensure_future(self.send_json({"t": "audio", "on": False, "reason": "unavailable"}))
+            self.core.changed()
+
+        try:
+            loop.call_soon_threadsafe(report)
+        except RuntimeError:
+            pass
 
     # -------------------------------------------------------------- stream
     async def _stream_loop(self) -> None:
@@ -338,6 +413,8 @@ class Session:
                 self.monitor = index
                 self.force = True
                 await self.send_json({"t": "mon", "monitor": index, "monitors": [x.as_dict() for x in self.monitors]})
+        elif t == "audio":
+            await self.set_audio(bool(m.get("on")))
         elif t == "pause":
             self.paused = True
         elif t == "resume":

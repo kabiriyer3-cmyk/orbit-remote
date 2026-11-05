@@ -73,6 +73,20 @@ Orbit состоит из двух частей. На компьютере за�
 
 На панели клавиатуры есть Ctrl, Alt, Shift и Win. Первое нажатие действует на одну следующую клавишу, второе фиксирует кнопку, третье отпускает. Там же стрелки, F1–F12, Alt+Tab, Win+D, копирование и вставка, Диспетчер задач и блокировка ПК. Качество картинки меняется кнопкой с ползунками: Speed для слабого Wi-Fi, Balanced по умолчанию, Sharp для мелкого текста.
 
+## Звук с компьютера
+
+Кнопка с динамиком вверху экрана включает звук компьютера на телефоне: музыку, видео, системные звуки, всё, что сейчас играет на ПК. Нажмите её ещё раз, чтобы выключить. Звук идёт по тому же зашифрованному каналу, что и картинка, и включается на каждом телефоне отдельно. Телефон запоминает выбор и при следующем подключении включает звук сам. Если звук не нужен совсем, выключите Share sound в настройках Orbit на компьютере. Если подключить наушники или сменить устройство вывода, Orbit переключится на него сам.
+
+## Окна с правами администратора
+
+Обычно Windows показывает запрос «Разрешить этому приложению вносить изменения?» на отдельном защищённом экране, который не видит ни одна программа, поэтому на телефоне в этот момент был чёрный экран. Включите в настройках Show admin prompts on the phone, и запрос будет появляться на обычном рабочем столе, а значит и на телефоне: вы увидите, какая программа просит права, вместо чёрного экрана.
+
+- Для этого Orbit должен работать от имени администратора (кнопка Restart as admin). Если включить настройку раньше, она заработает после перезапуска с правами администратора.
+- Windows по-прежнему спрашивает подтверждение на каждое действие с правами администратора, ничего не запускается само.
+- Orbit меняет только настройки UAC `PromptOnSecureDesktop` и, если нужно, `ConsentPromptBehaviorAdmin`, и возвращает их как было, когда вы выключаете эту опцию или закрываете Orbit. Если Orbit закрылся аварийно, настройки вернутся при следующем запуске с правами администратора.
+- Нажать «Да» в самом запросе с телефона пока нельзя. Windows запускает это окно с системными правами, выше, чем у любой программы администратора, и не пропускает в него нажатия от Orbit. Для этого Orbit нужна цифровая подпись и установка в Program Files (режим UIAccess) или отдельная системная служба, как у AnyDesk. Это запланировано на следующие версии.
+- Защищённый экран нужен, чтобы другие программы на компьютере не могли подделать или подсмотреть этот запрос. Включайте опцию, только если вам действительно нужно видеть такие запросы с телефона.
+
 ## Почему Windows и Android предупреждают
 
 Коротко: файлы не подписаны сертификатом, который стоит денег, и пока не опубликованы в Microsoft Store и Google Play. Вирусов в них нет, но проверить это можно и самостоятельно.
@@ -117,9 +131,9 @@ Android не даст поставить обновление поверх, ес
 ## Ограничения
 
 - Только локальная сеть. Для управления через интернет поставьте на оба устройства VPN вроде Tailscale или ZeroTier и вводите адрес компьютера в этой сети.
-- Windows не разрешает программам нажимать кнопки в окнах UAC («Разрешить этому приложению вносить изменения?»), на экране блокировки и после Ctrl+Alt+Del. Это ограничение самой системы.
+- Windows не разрешает программам нажимать кнопки в окнах UAC («Разрешить этому приложению вносить изменения?»), на экране блокировки и после Ctrl+Alt+Del. Окно UAC можно сделать видимым на телефоне (см. «Окна с правами администратора»), но ответить на него пока нужно за компьютером.
 - Окна, запущенные от администратора (Диспетчер задач, установщики), слушаются, только если Orbit тоже запущен от администратора. В Settings для этого есть кнопка Restart as admin.
-- Звук и файлы не передаются. Версии для iPhone пока нет.
+- Звук передаётся только с компьютера на телефон, микрофон телефона не используется. Файлы не передаются. Версии для iPhone пока нет.
 
 ## Если не подключается
 
@@ -154,6 +168,8 @@ cd android && ./gradlew assembleRelease
 
 Для Android нужны Node 22, JDK 21 и Android SDK 36. GitHub Actions ([build.yml](.github/workflows/build.yml)) собирает оба файла на каждый push, а при теге `v*` публикует релиз. Там же собираются пакеты для магазинов: MSIX для Microsoft Store и AAB для Google Play. Как подписать сборки и выложить их в магазины, описано в [docs/publishing.md](docs/publishing.md).
 
+Карта проекта, протокол и правила для правок (в том числе с помощью ИИ) собраны в [AGENTS.md](AGENTS.md).
+
 Лицензия MIT.
 
 ---
@@ -168,4 +184,8 @@ Orbit lets you use your Android phone as a mouse and keyboard for a Windows PC o
 
 The warnings appear because the files aren't signed with a paid code-signing certificate and the app isn't in the Microsoft Store or Google Play yet. Each release has `.sha256` files so you can check the downloads.
 
-Orbit works only on the local network; use a VPN such as Tailscale to reach your PC from elsewhere. Windows doesn't let any app click on UAC prompts or the lock screen. Audio and file transfer aren't supported.
+Tap the speaker button at the top of the session to hear the PC's sound on the phone; turn Share sound off on the PC to disable it entirely.
+
+Windows draws UAC prompts ("Do you want to allow this app to make changes?") on a protected secure desktop that no app can see, so the phone used to show a black screen. With Orbit running as administrator, turn on Settings → Show admin prompts on the phone and the prompt appears in the stream. Orbit changes only the UAC policies `PromptOnSecureDesktop` (and `ConsentPromptBehaviorAdmin` when needed) and puts them back when you turn the option off or quit. Clicking Yes from the phone isn't possible yet: the prompt runs above administrator level and needs a signed UIAccess build or a system service.
+
+Orbit works only on the local network; use a VPN such as Tailscale to reach your PC from elsewhere. Windows doesn't let any app click on UAC prompts or the lock screen. File transfer isn't supported.

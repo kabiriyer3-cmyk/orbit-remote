@@ -30,6 +30,8 @@ const P = {
   more: '<path d="M5.5 12h.01M12 12h.01M18.5 12h.01"/>',
   alert: '<path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5M12 17.5h.01"/>',
   arrowLeft: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
+  volume: '<path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>',
+  volumeOff: '<path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/>',
 };
 
 export function icon(name, cls = '') {

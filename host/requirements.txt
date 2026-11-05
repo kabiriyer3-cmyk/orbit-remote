@@ -4,3 +4,5 @@ mss>=9,<11
 Pillow>=10
 pystray>=0.19
 pywebview>=5.1
+soundcard>=0.4.3
+numpy>=1.24
