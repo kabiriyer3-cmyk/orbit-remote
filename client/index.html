@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#08090a">
+  <title>Orbit</title>
+  <link rel="icon" href="img/logo.svg">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="app">
+    <!-- ───────────── Connect ───────────── -->
+    <main class="view view-connect" id="view-connect">
+      <header class="topbar">
+        <div class="brand"><img src="img/logo.svg" alt="" class="brand-mark"><span>Orbit</span></div>
+        <button class="icon-btn" id="btn-about" aria-label="About Orbit" data-icon="info"></button>
+      </header>
+
+      <section class="hero">
+        <div class="eyebrow"><span class="dot dot-accent"></span>Remote control for Windows</div>
+        <h1>Your PC, in your pocket.</h1>
+        <p class="muted">Open <b>Orbit</b> on your Windows PC, then enter the address and session code it shows.</p>
+      </section>
+
+      <form class="card connect-card" id="connect-form" autocomplete="off" novalidate>
+        <label class="field">
+          <span class="label">Address</span>
+          <span class="input-wrap" data-icon="monitor">
+            <input id="in-address" inputmode="decimal" placeholder="192.168.1.20" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next">
+          </span>
+        </label>
+        <div class="field">
+          <span class="label">Session code</span>
+          <div class="code-input" id="code-input">
+            <input id="in-code" inputmode="numeric" pattern="[0-9]*" maxlength="7" autocomplete="one-time-code" enterkeyhint="go" aria-label="Session code">
+            <div class="code-cells" aria-hidden="true"><span></span><span></span><span></span><i></i><span></span><span></span><span></span></div>
+          </div>
+        </div>
+        <label class="switch-row">
+          <input type="checkbox" id="in-remember" checked>
+          <span class="switch"></span>
+          <span class="switch-text"><b>Remember this PC</b><small>Reconnect later without a code</small></span>
+        </label>
+        <button class="btn btn-primary btn-block" id="btn-connect" type="submit"><span>Connect</span><kbd>↵</kbd></button>
+      </form>
+
+      <section class="list-section" id="section-nearby">
+        <div class="section-head">
+          <h2>On this network</h2>
+          <button class="text-btn" id="btn-scan" type="button" data-icon="radar"><span>Scan</span></button>
+        </div>
+        <div class="list" id="list-nearby"></div>
+      </section>
+
+      <section class="list-section" id="section-recent">
+        <div class="section-head"><h2>Recent</h2></div>
+        <div class="list" id="list-recent"></div>
+      </section>
+
+      <footer class="foot">
+        <span data-icon="shieldCheck">End-to-end encrypted</span>
+        <span class="sep"></span>
+        <span id="app-version">v1.0.0</span>
+      </footer>
+    </main>
+
+    <!-- ───────────── Session ───────────── -->
+    <main class="view view-session hidden" id="view-session">
+      <div class="stage" id="stage">
+        <canvas id="screen"></canvas>
+        <div class="stage-status" id="stage-status">
+          <div class="spinner"></div>
+          <span id="stage-status-text">Waiting for the first frame…</span>
+        </div>
+      </div>
+
+      <div class="hud" id="hud">
+        <div class="hud-pill">
+          <span class="dot dot-green" id="hud-dot"></span>
+          <span class="hud-name" id="hud-name">PC</span>
+          <span class="hud-stats" id="hud-stats">— fps</span>
+        </div>
+        <div class="hud-actions">
+          <button class="icon-btn glass" id="btn-monitors" aria-label="Displays" data-icon="monitor"></button>
+          <button class="icon-btn glass" id="btn-fullscreen" aria-label="Hide controls" data-icon="expand"></button>
+        </div>
+      </div>
+
+      <div class="modbar hidden" id="modbar">
+        <div class="modbar-scroll">
+          <button data-mod="Control">Ctrl</button>
+          <button data-mod="Alt">Alt</button>
+          <button data-mod="Shift">Shift</button>
+          <button data-mod="Meta">Win</button>
+          <span class="modbar-sep"></span>
+          <button data-key="Escape">Esc</button>
+          <button data-key="Tab">Tab</button>
+          <button data-key="ArrowLeft" aria-label="Left">←</button>
+          <button data-key="ArrowUp" aria-label="Up">↑</button>
+          <button data-key="ArrowDown" aria-label="Down">↓</button>
+          <button data-key="ArrowRight" aria-label="Right">→</button>
+          <button data-key="Delete">Del</button>
+          <button data-key="Home">Home</button>
+          <button data-key="End">End</button>
+          <button data-key="PageUp">PgUp</button>
+          <button data-key="PageDown">PgDn</button>
+        </div>
+        <button class="modbar-close" id="btn-kbd-close" aria-label="Hide keyboard" data-icon="chevronDown"></button>
+      </div>
+
+      <nav class="dock" id="dock">
+        <div class="segmented" id="seg-mode" role="tablist">
+          <button data-mode="trackpad" role="tab" data-icon="pointer"><span>Trackpad</span></button>
+          <button data-mode="touch" role="tab" data-icon="hand"><span>Touch</span></button>
+          <i class="seg-thumb"></i>
+        </div>
+        <div class="dock-sep"></div>
+        <button class="dock-btn" id="btn-keyboard" aria-label="Keyboard" data-icon="keyboard"></button>
+        <button class="dock-btn" id="btn-shortcuts" aria-label="Shortcuts" data-icon="zap"></button>
+        <button class="dock-btn" id="btn-settings" aria-label="Session settings" data-icon="sliders"></button>
+        <button class="dock-btn danger" id="btn-disconnect" aria-label="Disconnect" data-icon="power"></button>
+      </nav>
+      <button class="restore-btn hidden" id="btn-restore" aria-label="Show controls" data-icon="shrink"></button>
+
+      <input id="kbd" class="kbd-sink" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="enter" aria-label="Keyboard input">
+    </main>
+
+    <div class="sheet-backdrop hidden" id="sheet-backdrop"></div>
+    <section class="sheet hidden" id="sheet" role="dialog" aria-modal="true"></section>
+    <div class="toast-stack" id="toasts" aria-live="polite"></div>
+  </div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

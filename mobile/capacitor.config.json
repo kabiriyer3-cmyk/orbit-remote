@@ -1,0 +1,20 @@
+{
+  "appId": "dev.orbitremote.app",
+  "appName": "Orbit",
+  "webDir": "../client",
+  "android": {
+    "backgroundColor": "#08090a",
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "server": {
+    "androidScheme": "http"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "style": "DARK",
+      "hidden": false
+    }
+  }
+}

@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Orbit</title>
+  <link rel="icon" href="img/icon-64.png">
+  <link rel="stylesheet" href="css/host.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <aside class="sidebar">
+      <div class="side-brand">
+        <img src="img/mark.svg" alt="" class="side-mark">
+        <div class="side-brand-text">
+          <span class="side-name">Orbit</span>
+          <span class="side-sub" id="side-host">—</span>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav">
+        <button class="nav-item active" data-page="overview"><span data-icon="home"></span>Overview</button>
+        <button class="nav-item" data-page="devices"><span data-icon="phone"></span>Devices<span class="nav-count hidden" id="nav-devices"></span></button>
+        <button class="nav-item" data-page="activity"><span data-icon="activity"></span>Activity</button>
+        <button class="nav-item" data-page="settings"><span data-icon="sliders"></span>Settings</button>
+      </nav>
+
+      <div class="side-foot">
+        <div class="status-card" id="status-card">
+          <div class="status-row"><span class="dot" id="status-dot"></span><span id="status-text">Connecting…</span></div>
+          <div class="status-sub" id="status-sub">Starting the Orbit service</div>
+        </div>
+        <div class="side-meta"><span id="side-version">Orbit</span><span class="sep">·</span><span id="side-mode">Windows</span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="offline hidden" id="offline">
+        <span data-icon="alert"></span>
+        <span>Lost connection to the Orbit service. Reconnecting…</span>
+      </div>
+
+      <!-- Overview -->
+      <section class="page" data-page="overview">
+        <header class="page-head">
+          <div>
+            <h1>Overview</h1>
+            <p class="muted">Let a phone on the same Wi‑Fi see and control this PC.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn btn-ghost" data-action="disconnect_all" id="btn-disconnect-all" disabled><span data-icon="power"></span>Disconnect all</button>
+          </div>
+        </header>
+
+        <div class="banner hidden" id="admin-banner">
+          <span class="banner-icon" data-icon="shield"></span>
+          <div class="banner-text">
+            <b>Administrator apps can’t be controlled</b>
+            <span>Windows blocks input into elevated windows (Task Manager, installers) unless Orbit runs as administrator.</span>
+          </div>
+          <button class="btn btn-sm" data-action="elevate">Restart as admin</button>
+        </div>
+
+        <div class="connect-grid">
+          <div class="card connect-card">
+            <div class="cc-head">
+              <span class="cc-icon" data-icon="wifi"></span>
+              <div>
+                <div class="cc-title">Address</div>
+                <div class="cc-sub">Type this in the Orbit app</div>
+              </div>
+            </div>
+            <div class="big-value mono" id="ov-address">—</div>
+            <div class="chips" id="ov-alt"></div>
+            <div class="cc-foot">
+              <span class="muted">Device ID <span class="mono" id="ov-id">—</span></span>
+              <button class="btn btn-sm btn-ghost" data-copy="address"><span data-icon="copy"></span>Copy</button>
+            </div>
+          </div>
+
+          <div class="card connect-card code-card">
+            <div class="cc-head">
+              <span class="cc-icon accent" data-icon="key"></span>
+              <div>
+                <div class="cc-title">Session code</div>
+                <div class="cc-sub">One‑time, changes after each use</div>
+              </div>
+            </div>
+            <div class="code-display" id="ov-code" aria-label="Session code">
+              <span>·</span><span>·</span><span>·</span><i></i><span>·</span><span>·</span><span>·</span>
+            </div>
+            <div class="cc-foot">
+              <button class="btn btn-sm btn-ghost" data-action="regenerate_code"><span data-icon="refresh"></span>New code</button>
+              <button class="btn btn-sm btn-ghost" data-copy="code"><span data-icon="copy"></span>Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card fp-card">
+          <span class="cc-icon green" data-icon="shieldCheck"></span>
+          <div class="fp-text">
+            <div class="cc-title">End‑to‑end encrypted</div>
+            <div class="cc-sub">Before you connect, check that your phone shows the same security key.</div>
+          </div>
+          <div class="fp-groups mono" id="ov-fp"></div>
+        </div>
+
+        <div class="section-head">
+          <h2>Active sessions</h2>
+          <span class="count" id="ov-session-count">0 / 3</span>
+        </div>
+        <div class="list card" id="ov-sessions"></div>
+
+        <div class="section-head">
+          <h2>How to connect</h2>
+        </div>
+        <div class="steps">
+          <div class="step"><span class="step-n">1</span><div><b>Install Orbit on your phone</b><span>Get the Android app from the GitHub release.</span></div></div>
+          <div class="step"><span class="step-n">2</span><div><b>Join the same Wi‑Fi</b><span>Your PC appears under “Nearby” automatically.</span></div></div>
+          <div class="step"><span class="step-n">3</span><div><b>Enter the code</b><span>Approve the request here — and you’re in.</span></div></div>
+        </div>
+      </section>
+
+      <!-- Devices -->
+      <section class="page hidden" data-page="devices">
+        <header class="page-head">
+          <div>
+            <h1>Devices</h1>
+            <p class="muted">Trusted phones reconnect without a code. Remove any you don’t recognise.</p>
+          </div>
+        </header>
+        <div class="section-head"><h2>Connected now</h2></div>
+        <div class="list card" id="dev-sessions"></div>
+        <div class="section-head"><h2>Trusted devices</h2><span class="count" id="dev-trusted-count">0</span></div>
+        <div class="list card" id="dev-trusted"></div>
+      </section>
+
+      <!-- Activity -->
+      <section class="page hidden" data-page="activity">
+        <header class="page-head">
+          <div>
+            <h1>Activity</h1>
+            <p class="muted">Connections, requests and security events since Orbit started.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn btn-ghost" data-action="clear_activity"><span data-icon="trash"></span>Clear</button>
+          </div>
+        </header>
+        <div class="filters" id="act-filters">
+          <button class="filter active" data-filter="all">All</button>
+          <button class="filter" data-filter="connect">Sessions</button>
+          <button class="filter" data-filter="request">Requests</button>
+          <button class="filter" data-filter="security">Security</button>
+        </div>
+        <div class="list card timeline" id="act-list"></div>
+      </section>
+
+      <!-- Settings -->
+      <section class="page hidden" data-page="settings">
+        <header class="page-head">
+          <div>
+            <h1>Settings</h1>
+            <p class="muted">Changes apply instantly.</p>
+          </div>
+        </header>
+
+        <div class="section-head"><h2>General</h2></div>
+        <div class="card settings">
+          <div class="set-row">
+            <div class="set-text"><b>Device name</b><span>Shown to phones on your network.</span></div>
+            <div class="input-sm"><input id="set-name" maxlength="48" spellcheck="false" autocomplete="off"></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Start with Windows</b><span>Run quietly in the tray after you sign in.</span></div>
+            <label class="switch"><input type="checkbox" id="set-autostart"><i></i></label>
+          </div>
+        </div>
+
+        <div class="section-head"><h2>Security</h2></div>
+        <div class="card settings">
+          <div class="set-row">
+            <div class="set-text"><b>Ask before connecting</b><span>Approve every new code‑based connection on this PC.</span></div>
+            <label class="switch"><input type="checkbox" id="set-approval"><i></i></label>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Allow control</b><span>Turn off to let phones only watch the screen.</span></div>
+            <label class="switch"><input type="checkbox" id="set-input"><i></i></label>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Windows Firewall</b><span>Allow Orbit on private networks so phones can reach it.</span></div>
+            <button class="btn btn-sm" data-action="firewall"><span data-icon="shield"></span>Allow access</button>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Administrator mode</b><span id="set-admin-sub">Needed to control elevated apps and UAC‑protected windows.</span></div>
+            <button class="btn btn-sm" data-action="elevate" id="set-elevate">Restart as admin</button>
+          </div>
+        </div>
+
+        <div class="section-head"><h2>Streaming</h2></div>
+        <div class="card settings">
+          <div class="set-row">
+            <div class="set-text"><b>Image quality</b><span>Default for new sessions. Phones can adjust it.</span></div>
+            <div class="range"><input type="range" id="set-quality" min="30" max="90" step="5"><output id="set-quality-out">70</output></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Frame rate</b><span>Higher is smoother but uses more bandwidth.</span></div>
+            <div class="segmented" id="set-fps">
+              <button data-v="15">15</button><button data-v="30">30</button><button data-v="60">60</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Max resolution</b><span>Width the screen is scaled down to.</span></div>
+            <div class="segmented" id="set-width">
+              <button data-v="1280">720p</button><button data-v="1600">900p</button><button data-v="1920">1080p</button><button data-v="2560">1440p</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-head"><h2>About</h2></div>
+        <div class="card settings">
+          <div class="set-row">
+            <div class="set-text"><b>Orbit <span id="about-version"></span></b><span id="about-sub">Open‑source remote control for your PC.</span></div>
+            <span class="tag" id="about-input">—</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Approval dialog -->
+  <div class="modal-scrim hidden" id="approval">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ap-title">
+      <div class="modal-glow"></div>
+      <div class="ap-avatar"><span data-icon="phone"></span><i class="pulse"></i></div>
+      <h3 id="ap-title">Allow <span id="ap-device">Phone</span> to control this PC?</h3>
+      <p class="muted" id="ap-sub">Connecting from —</p>
+      <div class="ap-meta">
+        <div class="kv"><span>Security key</span><span class="mono" id="ap-fp">—</span></div>
+        <div class="kv"><span>Expires</span><span id="ap-timer">60 s</span></div>
+      </div>
+      <label class="check"><input type="checkbox" id="ap-trust"><i data-icon="check"></i><span>Trust this device — skip the code next time</span></label>
+      <div class="ap-progress"><i id="ap-bar"></i></div>
+      <div class="modal-actions">
+        <button class="btn btn-lg btn-ghost" id="ap-decline">Decline</button>
+        <button class="btn btn-lg btn-primary" id="ap-accept">Allow</button>
+      </div>
+      <div class="ap-more muted hidden" id="ap-more"></div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+  <script type="module" src="js/host.js"></script>
+</body>
+</html>

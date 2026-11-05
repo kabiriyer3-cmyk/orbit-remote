@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+host/build/
+host/dist/
+host/out/
+host/selftest-*.json
+*.spec.bak
+.venv/
+
+# Node / Capacitor
+node_modules/
+mobile/out/
+mobile/android/app/src/main/assets/public/
+mobile/android/app/src/main/assets/capacitor.config.json
+mobile/android/app/src/main/assets/capacitor.plugins.json
+
+# Android build
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/local.properties
+mobile/android/.idea/
+
+# Secrets — never commit signing keys
+*.jks
+*.keystore
+*.p12
+signing/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
