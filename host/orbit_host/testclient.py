@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 
-from .capture import FRAME_HEADER, MSG_FRAME, MSG_JSON
+from .capture import FRAME_HEADER, MSG_AUDIO, MSG_FRAME, MSG_JSON
 from .secure import PROTO, SecureChannel, _hkdf, auth_proof, fingerprint
 
 
@@ -105,6 +105,9 @@ class TestClient:
         if plain[0] == MSG_FRAME:
             seq, w, h, cx, cy = FRAME_HEADER.unpack_from(plain, 1)
             return "frame", {"seq": seq, "w": w, "h": h, "cx": cx, "cy": cy, "jpeg": plain[1 + FRAME_HEADER.size :]}
+        if plain[0] == MSG_AUDIO:
+            rate, channels, bits, seq = struct.unpack_from("<IBBH", plain, 1)
+            return "audio", {"rate": rate, "channels": channels, "bits": bits, "seq": seq, "pcm": plain[9:]}
         return "unknown", plain
 
     async def auth_with_code(self, code: str, trust: bool = False, cid: str = "selftest") -> None:

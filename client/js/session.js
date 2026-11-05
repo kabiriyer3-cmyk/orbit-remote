@@ -4,6 +4,7 @@ import { native, isNative } from './native.js';
 
 const MSG_JSON = 1;
 const MSG_FRAME = 2;
+const MSG_AUDIO = 3;
 const te = new TextEncoder();
 const td = new TextDecoder();
 
@@ -153,6 +154,13 @@ export class OrbitSession extends EventTarget {
       });
       return;
     }
+    if (plain[0] === MSG_AUDIO) {
+      if (plain.length < 9) return;
+      const dv = new DataView(plain.buffer, plain.byteOffset + 1, 8);
+      // Copy the PCM out so it is 2-byte aligned for Int16Array.
+      this.emit('audio', { rate: dv.getUint32(0, true), channels: dv.getUint8(4), pcm: plain.slice(9) });
+      return;
+    }
     if (plain[0] !== MSG_JSON) return;
     const m = JSON.parse(td.decode(plain.subarray(1)));
     switch (m.t) {
@@ -176,6 +184,7 @@ export class OrbitSession extends EventTarget {
       case 'pong': this.rtt = Math.max(0, performance.now() - m.ts); this.emit('rtt', { rtt: this.rtt }); break;
       case 'mon': this.session.monitor = m.monitor; this.session.monitors = m.monitors; this.emit('monitor', m); break;
       case 'control': this.session.viewOnly = !!m.viewOnly; this.emit('control', m); break;
+      case 'audio': this.emit('audiostate', m); break;
       case 'bye': this.byeReason = m.reason || 'host'; break;
       default: break;
     }
@@ -228,6 +237,7 @@ export class OrbitSession extends EventTarget {
   ack(seq) { this.send({ t: 'ack', s: seq }); }
   config(cfg) { this.send(Object.assign({ t: 'cfg' }, cfg)); }
   monitor(i) { this.send({ t: 'mon', i }); }
+  audio(on) { this.send({ t: 'audio', on: !!on }); }
   pause() { this.send({ t: 'pause' }); }
   resume() { this.send({ t: 'resume' }); }
 }

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 from . import __version__, winutil
+from .audio import AudioHub
 from .config import DISCOVERY_PORT, Config, format_device_id, generate_code
 from .inputs import create_backend
 from .netinfo import local_ipv4
@@ -52,6 +53,7 @@ class HostCore:
         self.code = generate_code()
         self.admin_token = secrets.token_urlsafe(24)
         self.input = create_backend(demo)
+        self.audio = AudioHub(self)
         self.sessions: dict[str, Session] = {}
         self.pending: dict[str, PendingRequest] = {}
         self.admin_sockets: set[web.WebSocketResponse] = set()
@@ -64,6 +66,9 @@ class HostCore:
         self._broadcast_scheduled = False
         self._addr_cache: tuple[float, list[str]] = (0.0, [])
         self.log(f"Orbit {__version__} started", "info")
+        self._recover_uac()
+        if self.config.get("show_uac_prompts"):
+            self._apply_uac(True, announce=False)
 
     # ------------------------------------------------------------------ info
     @property
@@ -105,11 +110,14 @@ class HostCore:
             "demo": self.demo,
             "platform": sys.platform,
             "admin": winutil.is_admin(),
+            "uacVisible": winutil.uac_prompts_visible(),
             "packaged": winutil.is_packaged(),
             "input": getattr(self.input, "name", "unknown"),
             "settings": {
                 "requireApproval": bool(self.config.get("require_approval")),
                 "allowInput": bool(self.config.get("allow_input")),
+                "allowAudio": bool(self.config.get("allow_audio")),
+                "showUacPrompts": bool(self.config.get("show_uac_prompts")),
                 "quality": int(self.config.get("quality")),
                 "fps": int(self.config.get("fps")),
                 "maxWidth": int(self.config.get("max_width")),
@@ -299,6 +307,8 @@ class HostCore:
             updates["require_approval"] = bool(values["requireApproval"])
         if "allowInput" in values:
             updates["allow_input"] = bool(values["allowInput"])
+        if "allowAudio" in values:
+            updates["allow_audio"] = bool(values["allowAudio"])
         if "quality" in values:
             updates["quality"] = max(30, min(90, int(values["quality"])))
         if "fps" in values:
@@ -312,3 +322,64 @@ class HostCore:
         if updates:
             self.config.update(**updates)
             self.log("Settings updated", "info")
+        if "allowAudio" in values and not values["allowAudio"]:
+            for s in list(self.sessions.values()):
+                if s.audio and self.loop:
+                    asyncio.ensure_future(s.set_audio(False, reason="disabled"))
+        if "showUacPrompts" in values:
+            self._apply_uac(bool(values["showUacPrompts"]))
+
+    # ------------------------------------------------------------ UAC prompts
+    def _apply_uac(self, on: bool, announce: bool = True) -> bool:
+        """Show UAC prompts on the normal desktop (so phones can see them), or undo that.
+
+        Only possible while Orbit runs as administrator. The original Windows policy is
+        saved in the config first, so it is restored even after a crash.
+        """
+        if on:
+            if not winutil.is_admin():
+                # Keep the user's choice: it takes effect the next time Orbit runs as administrator.
+                self.config.update(show_uac_prompts=True)
+                if announce:
+                    self.log("Admin prompts will appear on the phone after Restart as admin", "warning")
+                return False
+            if winutil.uac_prompts_visible() and self.config.get("uac_restore"):
+                self.config.update(show_uac_prompts=True)
+                return True
+            previous = winutil.show_uac_on_desktop()
+            if previous is None:
+                self.config.update(show_uac_prompts=False)
+                self.log("Windows did not allow changing the admin prompt setting", "warning")
+                return False
+            if not self.config.get("uac_restore"):
+                self.config.update(uac_restore=previous)
+            self.config.update(show_uac_prompts=True)
+            if announce:
+                self.log("Admin prompts (UAC) now appear on the phone", "security")
+            return True
+        self.config.update(show_uac_prompts=False)
+        return self._restore_uac(announce)
+
+    def _restore_uac(self, announce: bool = True) -> bool:
+        previous = self.config.get("uac_restore")
+        if not previous:
+            return True
+        if winutil.restore_uac(previous):
+            self.config.update(uac_restore=None)
+            if announce:
+                self.log("Admin prompts (UAC) are back on the secure desktop", "security")
+            return True
+        if announce:
+            self.log("Restart Orbit as administrator to restore the admin prompt setting", "warning")
+        return False
+
+    def _recover_uac(self) -> None:
+        """A previous run changed UAC and didn't undo it (crash, power loss): undo it now."""
+        if self.config.get("uac_restore") and not self.config.get("show_uac_prompts"):
+            self._restore_uac(announce=False)
+
+    def shutdown(self) -> None:
+        """Called when Orbit exits: stop sound and put Windows' UAC setting back."""
+        self.audio.close()
+        if self.config.get("uac_restore"):
+            self._restore_uac(announce=False)

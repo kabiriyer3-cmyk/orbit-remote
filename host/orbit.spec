@@ -4,8 +4,10 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 datas = [("orbit_host/web", "web")]
 datas += collect_data_files("webview")
+# soundcard loads its WASAPI bindings from bundled .h files at runtime.
+datas += collect_data_files("soundcard")
 
-hiddenimports = ["pystray._win32", "PIL.ImageDraw"]
+hiddenimports = ["pystray._win32", "PIL.ImageDraw", "soundcard.mediafoundation", "_cffi_backend"]
 hiddenimports += collect_submodules("webview.platforms")
 hiddenimports += collect_submodules("orbit_host")
 

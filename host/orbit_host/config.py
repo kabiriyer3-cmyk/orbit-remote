@@ -22,6 +22,9 @@ DEFAULTS: dict[str, Any] = {
     "port": DEFAULT_PORT,
     "require_approval": True,
     "allow_input": True,
+    "allow_audio": True,
+    "show_uac_prompts": False,
+    "uac_restore": None,  # UAC policy to put back if Orbit exits without restoring it
     "quality": 70,
     "max_width": 1600,
     "fps": 30,

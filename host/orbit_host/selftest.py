@@ -123,6 +123,33 @@ def run(output: str | None = None, demo: bool = False) -> int:
                         break
                 else:
                     raise AssertionError("no pong")
+                # Sound: ask for the PC's audio and expect encrypted PCM packets.
+                core.audio.force_tone = True  # CI runners usually have no playback device
+                await client.send({"t": "audio", "on": True})
+                audio_reply, audio = None, None
+                for _ in range(80):
+                    kind, payload = await client.recv()
+                    if kind == "json" and payload.get("t") == "audio":
+                        audio_reply = payload
+                    elif kind == "audio":
+                        audio = payload
+                    elif kind == "frame":
+                        await client.send({"t": "ack", "s": payload["seq"]})
+                    if audio_reply and audio:
+                        break
+                assert audio_reply and audio_reply["on"], f"audio not enabled: {audio_reply}"
+                assert audio and audio["bits"] == 16 and len(audio["pcm"]) == 960 * 2 * audio["channels"], audio and {k: audio[k] for k in ("rate", "channels", "bits")}
+                await client.send({"t": "audio", "on": False})
+                for _ in range(80):
+                    kind, payload = await client.recv()
+                    if kind == "json" and payload.get("t") == "audio" and not payload["on"]:
+                        break
+                    if kind == "frame":
+                        await client.send({"t": "ack", "s": payload["seq"]})
+                else:
+                    raise AssertionError("audio did not stop")
+                assert core.audio.listeners == 0, "audio hub still has listeners"
+                detail["audio"] = {"rate": audio["rate"], "channels": audio["channels"], "bytes": len(audio["pcm"])}
                 await client.send({"t": "bye"})
             async with TestClient(url, pin=core.fingerprint) as again:
                 assert again.tls_fingerprint == core.fingerprint
@@ -182,9 +209,22 @@ def run(output: str | None = None, demo: bool = False) -> int:
             server.stop()
         return detail
 
+    def audio_device_step():
+        """Informational: is there a playback device whose sound can be captured?"""
+        if demo or sys.platform != "win32":
+            return {"skipped": "not Windows"}
+        try:
+            import soundcard as sc
+
+            speaker = sc.default_speaker()
+            return {"device": str(speaker.name), "loopback": True}
+        except Exception as exc:  # no audio endpoint on many CI runners
+            return {"device": None, "note": f"{type(exc).__name__}: {exc}"[:200]}
+
     step("capture", capture_step)
     step("input", input_step)
     step("protocol", protocol_step)
+    step("audio_device", audio_device_step)
     results["ok"] = ok
     text = json.dumps(results, indent=2, default=str)
     if output:

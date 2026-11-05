@@ -13,6 +13,16 @@ log = logging.getLogger("orbit.win")
 IS_WINDOWS = sys.platform == "win32"
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 APP_RUN_NAME = "OrbitRemote"
+# Windows draws the UAC prompt on an isolated "secure desktop" that no app can see or click.
+# Turning this policy off makes the prompt a normal window on the interactive desktop, so an
+# elevated Orbit can stream it to the phone and click it. HKLM, so it needs administrator rights.
+UAC_POLICY_KEY = r"Software\Microsoft\Windows\CurrentVersion\Policies\System"
+SECURE_DESKTOP_VALUE = "PromptOnSecureDesktop"
+# ConsentPromptBehaviorAdmin: 1 and 2 always use the secure desktop, and recent Windows 11
+# builds also keep the default 5 there. Map each to the same kind of prompt without the secure
+# desktop (credentials -> 3, consent -> 4) while the option is on; 0, 3 and 4 already work.
+CONSENT_ADMIN_VALUE = "ConsentPromptBehaviorAdmin"
+CONSENT_WITHOUT_SECURE_DESKTOP = {1: 3, 2: 4, 5: 4}
 
 
 def set_dpi_awareness() -> None:
@@ -59,6 +69,82 @@ def _shell_runas(exe: str, params: str) -> bool:
 def relaunch_as_admin() -> bool:
     exe, params = launch_command(["--elevated"])
     return _shell_runas(exe, params)
+
+
+def _read_policy(name: str, default: int) -> int | None:
+    import winreg
+
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, UAC_POLICY_KEY) as key:
+            value, _ = winreg.QueryValueEx(key, name)
+            return int(value)
+    except FileNotFoundError:
+        return default  # Windows uses its default when the value is absent
+    except (OSError, ValueError) as exc:
+        log.debug("cannot read UAC policy %s: %s", name, exc)
+        return None
+
+
+def _write_policy(name: str, value: int) -> None:
+    import winreg
+
+    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, UAC_POLICY_KEY, 0, winreg.KEY_SET_VALUE) as key:
+        winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, int(value))
+
+
+def uac_policy() -> dict[str, int] | None:
+    """Current UAC prompt policy, or None when it can't be read (not Windows, access denied)."""
+    if not IS_WINDOWS:
+        return None
+    secure = _read_policy(SECURE_DESKTOP_VALUE, 1)
+    consent = _read_policy(CONSENT_ADMIN_VALUE, 5)
+    if secure is None or consent is None:
+        return None
+    return {SECURE_DESKTOP_VALUE: secure, CONSENT_ADMIN_VALUE: consent}
+
+
+def uac_prompts_visible() -> bool:
+    """True when UAC prompts appear on the normal desktop, where Orbit can stream them."""
+    policy = uac_policy()
+    return bool(policy) and policy[SECURE_DESKTOP_VALUE] == 0
+
+
+def show_uac_on_desktop() -> dict[str, int] | None:
+    """Move UAC prompts off the secure desktop. Returns the previous policy so it can be restored.
+
+    Needs administrator rights. UAC still asks for every elevation; only the isolated
+    secure-desktop switch is turned off.
+    """
+    if not IS_WINDOWS or not is_admin():
+        return None
+    before = uac_policy()
+    if before is None:
+        return None
+    try:
+        _write_policy(SECURE_DESKTOP_VALUE, 0)
+        mapped = CONSENT_WITHOUT_SECURE_DESKTOP.get(before[CONSENT_ADMIN_VALUE])
+        if mapped is not None:
+            _write_policy(CONSENT_ADMIN_VALUE, mapped)
+        return before
+    except OSError as exc:
+        log.warning("cannot change UAC policy: %s", exc)
+        restore_uac(before)
+        return None
+
+
+def restore_uac(previous: dict[str, int] | None) -> bool:
+    """Put the UAC policy back to ``previous`` (as returned by ``show_uac_on_desktop``)."""
+    if not IS_WINDOWS or not previous or not is_admin():
+        return False
+    ok = True
+    for name in (SECURE_DESKTOP_VALUE, CONSENT_ADMIN_VALUE):
+        if name in previous:
+            try:
+                _write_policy(name, previous[name])
+            except OSError as exc:
+                log.warning("cannot restore UAC policy %s: %s", name, exc)
+                ok = False
+    return ok
 
 
 def add_firewall_rules(port: int, discovery_port: int) -> bool:

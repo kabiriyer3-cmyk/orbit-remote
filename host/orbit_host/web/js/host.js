@@ -194,7 +194,7 @@ function sessionRow(x) {
     <div class="row">
       <span class="tile live">${icon('phone')}<i></i></span>
       <span class="row-main">
-        <span class="row-title">${esc(x.device)}${x.trusted ? `<span class="tag green">${icon('shieldCheck')}Trusted</span>` : ''}${x.viewOnly ? '<span class="tag amber">View only</span>' : '<span class="tag accent">In control</span>'}</span>
+        <span class="row-title">${esc(x.device)}${x.trusted ? `<span class="tag green">${icon('shieldCheck')}Trusted</span>` : ''}${x.viewOnly ? '<span class="tag amber">View only</span>' : '<span class="tag accent">In control</span>'}${x.audio ? '<span class="tag">Listening</span>' : ''}</span>
         <span class="row-sub num">${esc(x.ip)} · <span data-since="${x.since}">${duration(since)}</span> · ${x.megabytes} MB sent</span>
       </span>
       <span class="row-actions">
@@ -234,6 +234,14 @@ function setRange(value) {
   r.style.setProperty('--p', `${((value - r.min) / (r.max - r.min)) * 100}%`);
 }
 
+function uacHint(on) {
+  if (state.platform !== 'win32') return 'Available on Windows.';
+  if (on && !state.admin) return 'Waiting for administrator mode: click Restart as admin above to turn this on.';
+  if (on && state.uacVisible) return 'On. Admin prompts appear on the phone. Windows still asks before every change.';
+  if (on) return 'Turning on…';
+  return 'Windows normally hides “Do you want to allow this app to make changes?” from remote apps, so the phone shows a black screen. Turn this on to see the prompt on the phone.';
+}
+
 function renderSettings() {
   const st = state.settings;
   if (document.activeElement !== $('set-name')) $('set-name').value = st.deviceName;
@@ -241,6 +249,10 @@ function renderSettings() {
   $('set-autostart').disabled = state.platform !== 'win32';
   $('set-approval').checked = !!st.requireApproval;
   $('set-input').checked = !!st.allowInput;
+  $('set-audio').checked = !!st.allowAudio;
+  $('set-uac').checked = !!st.showUacPrompts;
+  $('row-uac').classList.toggle('hidden', state.platform !== 'win32' && !state.demo);
+  $('set-uac-sub').textContent = uacHint(st.showUacPrompts);
   if (!draggingRange) setRange(st.quality);
   setSegment('set-fps', st.fps);
   setSegment('set-width', st.maxWidth);
@@ -331,6 +343,23 @@ document.addEventListener('click', async (e) => {
 const saveSetting = (key, value) => action('settings', { values: { [key]: value } });
 $('set-approval').onchange = (e) => saveSetting('requireApproval', e.target.checked);
 $('set-input').onchange = (e) => saveSetting('allowInput', e.target.checked);
+$('set-audio').onchange = async (e) => {
+  if (await saveSetting('allowAudio', e.target.checked)) toast(e.target.checked ? 'Phones can play this PC’s sound' : 'Sound sharing turned off', 'success');
+};
+$('set-uac').onchange = async (e) => {
+  const on = e.target.checked;
+  if (on && !confirm(
+    'Show admin prompts on the phone?\n\n'
+    + 'Windows will draw “Do you want to allow this app to make changes?” on the normal desktop instead of its protected secure desktop, '
+    + 'so Orbit can show it on your phone instead of a black screen.\n\n'
+    + 'Every admin action still asks first. Orbit puts the Windows setting back when you turn this off or quit.\n\n'
+    + 'This needs Orbit running as administrator.'
+  )) { e.target.checked = false; return; }
+  if (!(await saveSetting('showUacPrompts', on))) return;
+  if (!on) toast('Admin prompts are protected again', 'success');
+  else if (!state.admin) toast('Click Restart as admin to finish turning this on', 'warning', 4200);
+  else toast('Admin prompts now appear on the phone', 'success');
+};
 $('set-autostart').onchange = async (e) => {
   if (await action('autostart', { value: e.target.checked })) toast(e.target.checked ? 'Orbit will start with Windows' : 'Autostart turned off', 'success');
 };

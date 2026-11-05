@@ -47,7 +47,7 @@
           <span class="tile amber" data-icon="shield"></span>
           <div class="banner-text">
             <b>Some windows can’t be controlled</b>
-            <span>Windows blocks input into apps running as administrator (Task Manager, installers) unless Orbit runs as administrator too.</span>
+            <span>Windows blocks input into apps running as administrator (Task Manager, installers) unless Orbit runs as administrator too. Run as administrator to also see admin prompts on the phone.</span>
           </div>
           <button class="btn btn-sm" data-action="elevate">Restart as admin</button>
         </div>
@@ -164,6 +164,10 @@
             <div class="set-text"><b>Allow control</b><span>Turn off to let phones only watch the screen.</span></div>
             <label class="switch"><input type="checkbox" id="set-input"><i></i></label>
           </div>
+          <div class="set-row">
+            <div class="set-text"><b>Share sound</b><span>Let phones play what this PC is playing. Each phone turns it on with the speaker button.</span></div>
+            <label class="switch"><input type="checkbox" id="set-audio"><i></i></label>
+          </div>
           <div class="set-row" id="row-firewall">
             <div class="set-text"><b>Windows Firewall</b><span>Allow Orbit on private networks so phones can reach it.</span></div>
             <button class="btn btn-sm" data-action="firewall">Add rule</button>
@@ -171,6 +175,10 @@
           <div class="set-row">
             <div class="set-text"><b>Administrator mode</b><span id="set-admin-sub">Needed to control apps that run as administrator.</span></div>
             <button class="btn btn-sm" data-action="elevate" id="set-elevate">Restart as admin</button>
+          </div>
+          <div class="set-row" id="row-uac">
+            <div class="set-text"><b>Show admin prompts on the phone</b><span id="set-uac-sub">Windows normally hides “Do you want to allow this app to make changes?” from remote apps, so the phone shows a black screen. Turn this on to see the prompt on the phone.</span></div>
+            <label class="switch"><input type="checkbox" id="set-uac"><i></i></label>
           </div>
         </div>
 

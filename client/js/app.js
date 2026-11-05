@@ -4,10 +4,11 @@ import { store } from './store.js';
 import { native, isNative } from './native.js';
 import { OrbitSession } from './session.js';
 import { Viewer } from './viewer.js';
+import { player } from './audio.js';
 import { GestureController, KeyboardSink, Modifiers } from './input.js';
 import { openSheet, closeSheet, toast, confirmSheet, escapeHtml as esc, sheetOpen } from './ui.js';
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const REPO_URL = 'https://github.com/kabiriyer3-cmyk/orbit-remote';
 const DEFAULT_PORT = 47800;
 const $ = (id) => document.getElementById(id);
@@ -319,6 +320,8 @@ function startSession(target) {
   s.addEventListener('cursor', (e) => viewer.setHostCursor(e.detail.x, e.detail.y));
   s.addEventListener('rtt', updateStats);
   s.addEventListener('monitor', () => { viewer.reset(); toast('Display switched', 'success', 1600); });
+  s.addEventListener('audio', (e) => player.push(e.detail.pcm));
+  s.addEventListener('audiostate', (e) => onAudioState(s, e.detail));
   s.addEventListener('control', (e) => {
     toast(e.detail.viewOnly ? 'The PC switched this session to view only' : 'Control enabled', e.detail.viewOnly ? 'warning' : 'success');
   });
@@ -472,10 +475,17 @@ function enterSession(s, info) {
   native.keepAwake(true);
   native.immersive(true);
   if (info.viewOnly) toast('View only — this PC does not allow control', 'warning', 3600);
+  soundWanted = false;
+  setSoundUi(false);
+  $('btn-sound').classList.toggle('hidden', !player.supported);
+  if (store.prefs.sound && info.audio !== false) setSound(true);
 }
 
 function exitSession() {
   clearInterval(statsTimer);
+  soundWanted = false;
+  player.stop();
+  setSoundUi(false);
   keyboard.close();
   setKeyboardUi(false);
   sessionView.classList.add('hidden');
@@ -674,6 +684,61 @@ $('btn-settings').addEventListener('click', () => {
   }));
 });
 
+// Sound from the PC
+// soundWanted is what the user chose for this session; the host confirms with an 'audio' reply.
+let soundWanted = false;
+function setSoundUi(on, busy = false) {
+  const b = $('btn-sound');
+  b.classList.toggle('on', on);
+  b.classList.toggle('busy', busy);
+  b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  b.setAttribute('aria-label', on ? 'Mute PC sound' : 'Play PC sound');
+  b.innerHTML = icon(on ? 'volume' : 'volumeOff');
+}
+
+async function setSound(on) {
+  const s = activeSession();
+  if (!s) return;
+  soundWanted = on;
+  if (!on) {
+    s.audio(false);
+    player.stop();
+    setSoundUi(false);
+    return;
+  }
+  setSoundUi(false, true);
+  try {
+    await player.start(); // inside the tap handler, so the browser lets it play
+  } catch {
+    soundWanted = false;
+    setSoundUi(false);
+    toast('This phone cannot play sound from Orbit', 'error');
+    return;
+  }
+  if (soundWanted && activeSession() === s) s.audio(true);
+}
+
+function onAudioState(s, m) {
+  if (!current || current.session !== s) return;
+  if (m.on && soundWanted) {
+    player.start(m.rate, m.channels).catch(() => {});
+    setSoundUi(true);
+    return;
+  }
+  soundWanted = false;
+  player.stop();
+  setSoundUi(false);
+  if (m.reason === 'disabled') toast('Sound sharing is turned off on the PC', 'warning', 3600);
+  else if (m.reason === 'unavailable') toast('The PC has no sound device to share', 'warning', 3600);
+}
+
+$('btn-sound').addEventListener('click', () => {
+  const on = !soundWanted;
+  store.setPref('sound', on);
+  native.haptic();
+  setSound(on);
+});
+
 // Displays
 $('btn-monitors').addEventListener('click', () => {
   const s = activeSession();
@@ -720,8 +785,12 @@ window.addEventListener('popstate', () => {
 document.addEventListener('visibilitychange', () => {
   const s = activeSession();
   if (!s) return;
-  if (document.hidden) s.pause();
-  else { s.resume(); native.immersive(true); }
+  if (document.hidden) { s.pause(); if (soundWanted) player.stop(); }
+  else {
+    s.resume();
+    native.immersive(true);
+    if (soundWanted) player.start(player.rate, player.channels).catch(() => {});
+  }
 });
 
 native.syncInsets();

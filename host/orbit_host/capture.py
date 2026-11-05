@@ -16,6 +16,7 @@ from PIL import Image, ImageDraw
 FRAME_HEADER = struct.Struct("<IHHff")  # seq, width, height, cursor x, cursor y (normalized)
 MSG_JSON = 0x01
 MSG_FRAME = 0x02
+MSG_AUDIO = 0x03
 
 
 @dataclass
