@@ -168,6 +168,8 @@ cd android && ./gradlew assembleRelease
 
 Для Android нужны Node 22, JDK 21 и Android SDK 36. GitHub Actions ([build.yml](.github/workflows/build.yml)) собирает оба файла на каждый push, а при теге `v*` публикует релиз. Там же собираются пакеты для магазинов: MSIX для Microsoft Store и AAB для Google Play. Как подписать сборки и выложить их в магазины, описано в [docs/publishing.md](docs/publishing.md).
 
+Карта проекта, протокол и правила для правок (в том числе с помощью ИИ) собраны в [AGENTS.md](AGENTS.md).
+
 Лицензия MIT.
 
 ---
