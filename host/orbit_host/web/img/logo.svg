@@ -1,29 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c1d23"/><stop offset="1" stop-color="#09090b"/></linearGradient>
-    <radialGradient id="glow" cx=".5" cy=".36" r=".64"><stop offset="0" stop-color="#7170ff" stop-opacity=".38"/><stop offset="1" stop-color="#7170ff" stop-opacity="0"/></radialGradient>
-    <linearGradient id="planet" x1=".15" y1=".05" x2=".85" y2=".95">
-      <stop offset="0" stop-color="#d4d5ff"/>
-      <stop offset=".5" stop-color="#8586ff"/>
-      <stop offset="1" stop-color="#4a4dc2"/>
-    </linearGradient>
-    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset=".55" stop-color="#c3c4ff"/>
-      <stop offset="1" stop-color="#7a79ff"/>
-    </linearGradient>
-    <clipPath id="front"><rect x="-100" y="256" width="712" height="400" transform="rotate(-22 256 256)"/></clipPath>
-    <mask id="cut-back"><rect width="512" height="512" fill="#fff"/><circle cx="256" cy="256" r="104" fill="#000"/></mask>
-    <mask id="cut-planet"><rect width="512" height="512" fill="#fff"/>
-      <g clip-path="url(#front)"><ellipse cx="256" cy="256" rx="172" ry="58" transform="rotate(-22 256 256)" fill="none" stroke="#000" stroke-width="44"/></g>
-    </mask>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6E78E0"/><stop offset="1" stop-color="#4E58C2"/></linearGradient>
+    <mask id="gap"><rect width="512" height="512" fill="#fff"/><circle cx="349" cy="163" r="54" fill="#000"/></mask>
   </defs>
-  <rect x="8" y="8" width="496" height="496" rx="118" fill="url(#tile)"/>
-  <rect x="8" y="8" width="496" height="496" rx="118" fill="url(#glow)"/>
-  <rect x="9.5" y="9.5" width="493" height="493" rx="116.5" fill="none" stroke="#fff" stroke-opacity=".09" stroke-width="3"/>
-  <ellipse cx="256" cy="256" rx="172" ry="58" transform="rotate(-22 256 256)" fill="none" stroke="url(#ring)" stroke-width="18" mask="url(#cut-back)"/>
-  <circle cx="256" cy="256" r="88" fill="url(#planet)" mask="url(#cut-planet)"/>
-  <g clip-path="url(#front)"><ellipse cx="256" cy="256" rx="172" ry="58" transform="rotate(-22 256 256)" fill="none" stroke="url(#ring)" stroke-width="18"/></g>
-  <circle cx="392" cy="166" r="30" fill="#fff" fill-opacity=".1"/>
-  <circle cx="392" cy="166" r="17" fill="#fff"/>
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="132" fill="none" stroke="#fff" stroke-width="46" mask="url(#gap)"/>
+  <circle cx="349" cy="163" r="30" fill="#fff"/>
 </svg>

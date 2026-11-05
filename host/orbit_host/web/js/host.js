@@ -1,4 +1,4 @@
-// Orbit PC dashboard — talks to the local host service over a loopback-only, token-protected API.
+// Orbit window on the PC. Talks to the local service over loopback; every call carries the token from the tray.
 const P = {
   home: '<path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9v10.5a1 1 0 0 0 1 1h4v-6h3v6h4a1 1 0 0 0 1-1V9"/>',
   phone: '<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
@@ -51,7 +51,7 @@ function connect() {
   };
   ws.onclose = () => {
     if (state) $('offline').classList.remove('hidden');
-    setStatus('red', 'Offline', 'Orbit service is not reachable');
+    setStatus('red', 'Offline', 'the Orbit service is not responding');
     setTimeout(connect, Math.min(4000, 400 * 2 ** retry++));
   };
 }
@@ -113,14 +113,14 @@ const clock = (ts) => new Date(ts * 1000).toLocaleTimeString(undefined, { hour: 
 const primaryAddress = () => (state && state.addresses && state.addresses[0]) || '127.0.0.1';
 const addressLabel = () => (state && state.port && state.port !== 47800 ? `${primaryAddress()}:${state.port}` : primaryAddress());
 
-function setStatus(color, text, sub, live = false) {
-  $('status-dot').className = `dot dot-${color}${live ? ' dot-live' : ''}`;
+function setStatus(color, text, sub) {
+  $('status-dot').className = `dot dot-${color}`;
   $('status-text').textContent = text;
   $('status-sub').textContent = sub;
 }
 
 function empty(ic, title, sub) {
-  return `<div class="empty"><div class="empty-art">${icon(ic)}</div><b>${esc(title)}</b><span>${esc(sub)}</span></div>`;
+  return `<div class="empty"><span class="tile">${icon(ic)}</span><div><b>${esc(title)}</b><span>${esc(sub)}</span></div></div>`;
 }
 
 // ─── Render ───
@@ -130,16 +130,18 @@ function render() {
   const n = s.sessions.length;
   document.title = n ? `Orbit — ${n} connected` : 'Orbit';
   $('side-host').textContent = s.name;
-  $('side-version').textContent = `Orbit ${s.version}`;
-  $('side-mode').textContent = s.demo ? 'Demo mode' : s.admin ? 'Administrator' : 'Standard user';
+  $('side-name').textContent = s.name;
+  $('side-version').textContent = `Version ${s.version}`;
+  $('side-mode').textContent = s.demo ? 'Demo mode' : s.admin ? 'Administrator' : '';
 
-  if (s.pending.length) setStatus('amber', 'Access request', `${s.pending[0].device} is waiting`, true);
-  else if (n) setStatus('accent', 'In use', `${n} phone${n > 1 ? 's' : ''} connected`, true);
-  else setStatus('green', 'Ready', 'Waiting for a phone');
+  if (s.pending.length) setStatus('amber', 'Request waiting', `${s.pending[0].device} wants to connect`);
+  else if (n === 1) setStatus('accent', 'In use', `${s.sessions[0].device} is connected`);
+  else if (n) setStatus('accent', 'In use', `${n} phones connected`);
+  else setStatus('green', 'Ready', 'no one is connected');
 
   // Overview
   $('ov-address').textContent = addressLabel();
-  $('ov-alt').innerHTML = s.addresses.slice(1, 4).map((a) => `<span class="chip mono">${esc(a)}</span>`).join('');
+  $('ov-alt').innerHTML = s.addresses.slice(1, 4).map((a) => `<span class="chip num">${esc(a)}</span>`).join('');
   $('ov-id').textContent = s.deviceId;
   if (s.code !== lastCode) {
     const cells = $('ov-code').querySelectorAll('span');
@@ -149,15 +151,21 @@ function render() {
   }
   $('ov-fp').innerHTML = s.fingerprint.split(' ').map((g) => `<span>${esc(g)}</span>`).join('');
   $('btn-disconnect-all').disabled = !n;
-  $('ov-session-count').textContent = `${n} / 3`;
+  $('ov-session-count').textContent = `${n} of 3`;
+  $('btn-disconnect-all').classList.toggle('hidden', !n);
+  // Store (MSIX) build: Windows manages startup and firewall rules for the package.
+  $('set-autostart').closest('.switch').classList.toggle('hidden', !!s.packaged);
+  $('btn-startup').classList.toggle('hidden', !s.packaged);
+  $('autostart-sub').textContent = s.packaged ? 'Turn Orbit on under Startup apps in Windows Settings.' : 'Run in the tray after you sign in.';
+  $('row-firewall').classList.toggle('hidden', !!s.packaged);
   const showAdmin = s.platform === 'win32' && !s.admin && !s.demo && localStorage.getItem('orbit.hideAdmin') !== '1';
   $('admin-banner').classList.toggle('hidden', !showAdmin);
 
   const sessionsHtml = n
     ? s.sessions.map(sessionRow).join('')
-    : empty('phone', 'No one is connected', 'Open Orbit on your phone and enter the address and code above.');
+    : empty('phone', 'No one is connected', 'When a phone connects, it shows up here.');
   $('ov-sessions').innerHTML = sessionsHtml;
-  $('dev-sessions').innerHTML = n ? s.sessions.map(sessionRow).join('') : empty('phone', 'No active sessions', 'Phones you connect will show up here.');
+  $('dev-sessions').innerHTML = n ? s.sessions.map(sessionRow).join('') : empty('phone', 'No one is connected', 'Phones that are connected right now show up here.');
 
   // Devices
   $('nav-devices').textContent = n;
@@ -166,14 +174,14 @@ function render() {
   $('dev-trusted').innerHTML = s.trusted.length
     ? s.trusted.map((t) => `
       <div class="row">
-        <span class="row-icon">${icon('phone')}</span>
+        <span class="tile">${icon('phone')}</span>
         <span class="row-main">
-          <span class="row-title">${esc(t.name || 'Phone')}<span class="tag green">${icon('shieldCheck')}Trusted</span></span>
+          <span class="row-title">${esc(t.name || 'Phone')}</span>
           <span class="row-sub">Added ${esc(ago(t.added))} · last seen ${esc(ago(t.lastSeen))}</span>
         </span>
         <span class="row-actions"><button class="btn btn-sm btn-ghost btn-danger" data-revoke="${esc(t.clientId)}" data-name="${esc(t.name || 'Phone')}">${icon('trash')}Remove</button></span>
       </div>`).join('')
-    : empty('shield', 'No trusted devices', 'When you approve a phone, tick “Trust this device” to skip the code next time.');
+    : empty('shield', 'No trusted phones', 'When you allow a connection, tick “Trust this phone” and it won’t need a code next time.');
 
   renderActivity();
   renderSettings();
@@ -184,10 +192,10 @@ function sessionRow(x) {
   const since = Date.now() / 1000 - x.since;
   return `
     <div class="row">
-      <span class="row-icon">${icon('phone')}<i class="badge"></i></span>
+      <span class="tile live">${icon('phone')}<i></i></span>
       <span class="row-main">
-        <span class="row-title">${esc(x.device)}${x.trusted ? `<span class="tag green">${icon('shieldCheck')}Trusted</span>` : ''}${x.viewOnly ? '<span class="tag amber">View only</span>' : '<span class="tag accent">Controlling</span>'}</span>
-        <span class="row-sub">${esc(x.ip)} · <span data-since="${x.since}">${duration(since)}</span> · ${x.megabytes} MB</span>
+        <span class="row-title">${esc(x.device)}${x.trusted ? `<span class="tag green">${icon('shieldCheck')}Trusted</span>` : ''}${x.viewOnly ? '<span class="tag amber">View only</span>' : '<span class="tag accent">In control</span>'}</span>
+        <span class="row-sub num">${esc(x.ip)} · <span data-since="${x.since}">${duration(since)}</span> · ${x.megabytes} MB sent</span>
       </span>
       <span class="row-actions">
         <button class="btn btn-sm btn-ghost" data-viewonly="${esc(x.id)}" data-value="${x.viewOnly ? '0' : '1'}">${icon(x.viewOnly ? 'pointer' : 'eye')}${x.viewOnly ? 'Allow control' : 'View only'}</button>
@@ -210,9 +218,9 @@ function renderActivity() {
       <div class="row">
         <span class="ev-icon ev-${esc(e.kind)}">${icon(EV_ICON[e.kind] || 'info')}</span>
         <span class="ev-text">${esc(e.text)}</span>
-        <span class="ev-time" title="${esc(new Date(e.ts * 1000).toLocaleString())}">${esc(clock(e.ts))}</span>
+        <span class="ev-time num" title="${esc(new Date(e.ts * 1000).toLocaleString())}">${esc(clock(e.ts))}</span>
       </div>`).join('')
-    : empty('activity', 'Nothing here yet', 'Connections and security events will appear as they happen.');
+    : empty('activity', 'Nothing yet', 'Connections and security events are listed here as they happen.');
 }
 
 function setSegment(id, value) {
@@ -237,9 +245,9 @@ function renderSettings() {
   setSegment('set-fps', st.fps);
   setSegment('set-width', st.maxWidth);
   $('set-elevate').disabled = state.admin || state.platform !== 'win32';
-  $('set-elevate').textContent = state.admin ? 'Running as admin' : 'Restart as admin';
+  $('set-elevate').textContent = state.admin ? 'Already on' : 'Restart as admin';
   $('about-version').textContent = state.version;
-  $('about-input').textContent = state.demo ? 'Demo input' : `${state.input} input`;
+  $('about-input').textContent = state.demo ? 'Demo' : `Input: ${state.input}`;
 }
 
 // ─── Approval dialog ───
@@ -250,7 +258,7 @@ function renderApproval() {
   if (shownRequest !== req.id) {
     shownRequest = req.id;
     $('ap-device').textContent = req.device;
-    $('ap-sub').textContent = `Connecting from ${req.ip} on your network`;
+    $('ap-sub').textContent = `Request from ${req.ip} on your network.`;
     $('ap-fp').textContent = state.fingerprint;
     $('ap-trust').checked = !!req.wantsTrust;
     $('approval').classList.remove('hidden');
@@ -258,7 +266,7 @@ function renderApproval() {
   }
   const more = state.pending.length - 1;
   $('ap-more').classList.toggle('hidden', more < 1);
-  $('ap-more').textContent = `+${more} more waiting`;
+  $('ap-more').textContent = `${more} more waiting`;
   tickApproval();
 }
 
@@ -294,8 +302,8 @@ document.addEventListener('click', async (e) => {
     if (a === 'disconnect_all' && !confirm('Disconnect every phone?')) return;
     const ok = await action(a);
     if (!ok) return;
-    if (a === 'regenerate_code') toast('New session code generated', 'success');
-    if (a === 'firewall') toast('Confirm the Windows prompt to add the firewall rule');
+    if (a === 'regenerate_code') toast('New code ready', 'success');
+    if (a === 'firewall') toast('Confirm the Windows prompt to add the rule');
     if (a === 'disconnect_all') toast('All phones disconnected', 'success');
   } else if (t.dataset.copy) {
     copy(t.dataset.copy === 'code' ? state.code : addressLabel(), t);
@@ -336,7 +344,17 @@ let draggingRange = false;
 $('set-quality').addEventListener('input', (e) => { draggingRange = true; setRange(Number(e.target.value)); });
 $('set-quality').addEventListener('change', (e) => { draggingRange = false; saveSetting('quality', Number(e.target.value)); });
 
-$('admin-banner').insertAdjacentHTML('beforeend', `<button class="btn btn-sm btn-ghost" id="banner-close" aria-label="Dismiss">${icon('x')}</button>`);
+$('admin-banner').insertAdjacentHTML('beforeend', `<button class="btn btn-sm btn-ghost btn-icon" id="banner-close" aria-label="Dismiss">${icon('x')}</button>`);
+
+// Keyboard: N new code, C copy code (Linear-style single-key shortcuts).
+document.addEventListener('keydown', (e) => {
+  if (!state || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  if (e.target.closest('input, textarea') || !$('approval').classList.contains('hidden')) return;
+  if (document.querySelector('.page[data-page="overview"]').classList.contains('hidden')) return;
+  const k = e.key.toLowerCase();
+  if (k === 'n') document.querySelector('[data-action="regenerate_code"]').click();
+  else if (k === 'c') document.querySelector('[data-copy="code"]').click();
+});
 
 setInterval(() => {
   document.querySelectorAll('[data-since]').forEach((el) => { el.textContent = duration(Date.now() / 1000 - Number(el.dataset.since)); });
@@ -344,8 +362,8 @@ setInterval(() => {
 }, 1000);
 
 if (!token) {
-  setStatus('red', 'Not authorised', 'Open the dashboard from the Orbit tray icon');
-  document.querySelector('.page').insertAdjacentHTML('afterbegin', '<div class="banner"><span class="banner-icon">' + icon('lock') + '</span><div class="banner-text"><b>Missing access token</b><span>Open this dashboard from the Orbit tray icon.</span></div></div>');
+  setStatus('red', 'Not signed in', 'open this window from the Orbit tray icon');
+  document.querySelector('.page-head').insertAdjacentHTML('afterend', `<div class="banner"><span class="tile amber">${icon('lock')}</span><div class="banner-text"><b>This page needs a key</b><span>Open it from the Orbit icon in the system tray.</span></div></div>`);
 } else {
   connect();
 }

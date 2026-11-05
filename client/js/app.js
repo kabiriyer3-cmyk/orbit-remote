@@ -7,7 +7,7 @@ import { Viewer } from './viewer.js';
 import { GestureController, KeyboardSink, Modifiers } from './input.js';
 import { openSheet, closeSheet, toast, confirmSheet, escapeHtml as esc, sheetOpen } from './ui.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const REPO_URL = 'https://github.com/kabiriyer3-cmyk/orbit-remote';
 const DEFAULT_PORT = 47800;
 const $ = (id) => document.getElementById(id);
@@ -17,6 +17,7 @@ const QUALITY = {
   balanced: { quality: 68, maxWidth: 1600, fps: 30, label: 'Balanced', hint: 'Best for most Wi‑Fi networks' },
   sharp: { quality: 85, maxWidth: 2560, fps: 24, label: 'Sharp', hint: 'Crisp text, needs a strong network' },
 };
+
 
 hydrateIcons();
 $('app-version').textContent = `v${VERSION}`;
@@ -215,13 +216,9 @@ $('list-nearby').addEventListener('click', (e) => {
 
 $('btn-about').addEventListener('click', () => {
   openSheet(`
-    <div class="sheet-head"><img src="img/logo.svg" alt="" style="width:40px;height:40px;border-radius:11px">
-      <div><h3>Orbit ${VERSION}</h3><p>Control your Windows PC from your phone</p></div></div>
+    <div class="sheet-head"><img src="img/logo.svg" alt="">
+      <div><h3>Orbit ${VERSION}</h3><p>Mouse and keyboard for a Windows PC on your Wi‑Fi</p></div></div>
     <div class="sheet-body">
-      <div class="sheet-section"><h4>Get started</h4>
-        <div class="kv"><span>1</span><span>Install <b>Orbit for Windows</b> and open it</span></div>
-        <div class="kv"><span>2</span><span>Join the same Wi‑Fi network</span></div>
-        <div class="kv"><span>3</span><span>Enter the address and session code</span></div></div>
       <div class="sheet-section"><h4>Gestures</h4>
         <div class="kv"><span>Tap</span><span>Left click</span></div>
         <div class="kv"><span>Two‑finger tap</span><span>Right click</span></div>
@@ -230,7 +227,7 @@ $('btn-about').addEventListener('click', () => {
         <div class="kv"><span>Press &amp; hold</span><span>Drag (trackpad) · right click (touch)</span></div>
         <div class="kv"><span>Three‑finger tap</span><span>Keyboard</span></div></div>
       <div class="sheet-section"><h4>Security</h4>
-        <p class="muted">Orbit connects over TLS pinned to the PC's security key, and everything inside runs through a second end‑to‑end encrypted channel (ECDH P‑256, AES‑256‑GCM). New phones need the PC's one‑time code and approval.</p></div>
+        <p class="muted">The connection is encrypted and tied to the PC's security key. A new phone needs the one-time code, and someone at the PC has to accept it.</p></div>
     </div>
     <div class="sheet-actions">
       <a class="btn btn-secondary" href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>
@@ -256,10 +253,10 @@ function verifySheet(info, target) {
   return new Promise((resolve) => {
     const prior = store.hostByAddress(target.address, target.port);
     const warn = prior && prior.id !== info.id
-      ? `<p style="color:#f2a43a">This address used to belong to <b>${esc(prior.name)}</b>, which had a different security key. Continue only if you reinstalled Orbit or this is a different PC.</p>` : '';
+      ? `<p class="warn">This address used to belong to <b>${esc(prior.name)}</b>, which had a different security key. Continue only if you reinstalled Orbit or this is a different PC.</p>` : '';
     const groups = info.fingerprint.split(' ').map((g) => `<span>${esc(g)}</span>`).join('');
     const el = openSheet(`
-      <div class="sheet-head"><div class="sheet-icon" data-icon="shield"></div>
+      <div class="sheet-head"><div class="sheet-icon accent" data-icon="shield"></div>
         <div><h3>Verify ${esc(info.name)}</h3><p>First connection to this PC</p></div></div>
       <div class="sheet-body">
         ${warn}
@@ -278,7 +275,7 @@ function verifySheet(info, target) {
 
 function pendingSheet(s) {
   const el = openSheet(`
-    <div class="pending-art"><div class="pulse">${icon('monitor')}</div></div>
+    <div class="pending-art"><div class="spinner"></div></div>
     <div class="sheet-head" style="justify-content:center;text-align:center;margin-top:12px">
       <div><h3>Waiting for approval</h3><p>Accept the request in Orbit on ${esc(s.hostName || 'your PC')}</p></div></div>
     <div class="sheet-actions single"><button class="btn btn-secondary" data-act="cancel">Cancel</button></div>`,

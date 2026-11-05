@@ -41,6 +41,9 @@ jobs:
         working-directory: host
     env:
       ORBIT_VERSION: ${{ needs.version.outputs.name }}
+      # Optional code signing. Nothing is signed until these secrets exist (see docs/publishing.md).
+      HAS_PFX: ${{ secrets.WINDOWS_CERT_PFX_BASE64 != '' }}
+      HAS_SIGNPATH: ${{ secrets.SIGNPATH_API_TOKEN != '' && vars.SIGNPATH_ORGANIZATION_ID != '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -51,9 +54,14 @@ jobs:
           cache-dependency-path: host/requirements.txt
 
       - name: Install dependencies
+        env:
+          # Build PyInstaller's bootloader from source. The prebuilt one is shared by a lot of
+          # malware, so antivirus engines flag it; a freshly compiled one gets far fewer false alarms.
+          PYINSTALLER_COMPILE_BOOTLOADER: "1"
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt pyinstaller
+          python -m pip install --upgrade pip wheel
+          pip install -r requirements.txt
+          pip install --no-binary pyinstaller pyinstaller
 
       - name: Stamp version
         run: python ../.github/scripts/stamp_version.py "$env:ORBIT_VERSION"
@@ -63,6 +71,47 @@ jobs:
 
       - name: Build Orbit.exe
         run: pyinstaller orbit.spec --noconfirm --clean
+
+      - name: Sign Orbit.exe (certificate from secrets)
+        if: env.HAS_PFX == 'true'
+        shell: pwsh
+        env:
+          PFX_B64: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'orbit-sign.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_B64))
+          $signtool = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1).FullName
+          & $signtool sign /fd SHA256 /f $pfx /p $env:PFX_PASSWORD /tr http://timestamp.digicert.com /td SHA256 /d "Orbit Remote" dist\Orbit.exe
+          if ($LASTEXITCODE -ne 0) { throw 'signtool sign failed' }
+          & $signtool verify /pa dist\Orbit.exe
+          Remove-Item $pfx
+
+      - name: Upload unsigned Orbit.exe for SignPath
+        if: env.HAS_SIGNPATH == 'true'
+        id: unsigned
+        uses: actions/upload-artifact@v7
+        with:
+          name: orbit-unsigned
+          path: host/dist/Orbit.exe
+          if-no-files-found: error
+
+      - name: Sign Orbit.exe (SignPath)
+        if: env.HAS_SIGNPATH == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'orbit-remote' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG || 'release-signing' }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: host/signed
+
+      - name: Use the SignPath-signed exe
+        if: env.HAS_SIGNPATH == 'true'
+        shell: pwsh
+        run: Copy-Item signed\Orbit.exe dist\Orbit.exe -Force
 
       - name: Self-test (packaged exe)
         shell: pwsh
@@ -92,6 +141,47 @@ jobs:
         with:
           name: orbit-windows
           path: host/out/*
+          if-no-files-found: error
+
+      - name: Build MSIX for the Microsoft Store
+        shell: pwsh
+        env:
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
+          MSIX_PUBLISHER_DISPLAY_NAME: ${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}
+        run: ../packaging/msix/build_msix.ps1 -Exe dist\Orbit.exe -Version $env:ORBIT_VERSION -Out store\Orbit-Windows-Store.msix
+
+      - name: Test-install the MSIX (temporary self-signed certificate)
+        shell: pwsh
+        env:
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
+        run: |
+          $name = if ($env:MSIX_IDENTITY_NAME) { $env:MSIX_IDENTITY_NAME } else { 'OrbitRemote.Orbit' }
+          $publisher = if ($env:MSIX_PUBLISHER) { $env:MSIX_PUBLISHER } else { 'CN=Orbit Remote' }
+          $cert = New-SelfSignedCertificate -Type Custom -Subject $publisher -KeyUsage DigitalSignature -FriendlyName 'Orbit CI test' `
+            -CertStoreLocation 'Cert:\CurrentUser\My' -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
+          $pfx = Join-Path $env:RUNNER_TEMP 'msix-test.pfx'
+          $cer = Join-Path $env:RUNNER_TEMP 'msix-test.cer'
+          Export-PfxCertificate -Cert $cert -FilePath $pfx -Password (ConvertTo-SecureString 'ci-test' -AsPlainText -Force) | Out-Null
+          Export-Certificate -Cert $cert -FilePath $cer | Out-Null
+          Import-Certificate -FilePath $cer -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople' | Out-Null
+          $test = Join-Path $env:RUNNER_TEMP 'Orbit-test.msix'
+          Copy-Item store\Orbit-Windows-Store.msix $test
+          $signtool = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1).FullName
+          & $signtool sign /fd SHA256 /f $pfx /p ci-test $test
+          if ($LASTEXITCODE -ne 0) { throw 'test signing failed' }
+          Add-AppxPackage -Path $test
+          $pkg = Get-AppxPackage -Name $name
+          if (-not $pkg) { throw 'MSIX did not install' }
+          Write-Host "Installed $($pkg.PackageFullName) from $($pkg.InstallLocation)"
+          if (-not (Test-Path (Join-Path $pkg.InstallLocation 'Orbit.exe'))) { throw 'Orbit.exe missing from the package' }
+          Remove-AppxPackage -Package $pkg.PackageFullName
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: store-windows-msix
+          path: host/store/Orbit-Windows-Store.msix
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v7
@@ -142,7 +232,7 @@ jobs:
             echo "ORBIT_KEYSTORE=$RUNNER_TEMP/orbit-release.jks" >> "$GITHUB_ENV"
             echo "Release keystore configured"
           else
-            echo "::warning::ANDROID_KEYSTORE_BASE64 is not set — the APK will be signed with a debug key"
+            echo "::warning::ANDROID_KEYSTORE_BASE64 is not set, so the APK will be signed with a debug key"
           fi
 
       - name: Build release APK
@@ -153,7 +243,7 @@ jobs:
           ORBIT_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace \
+          ./gradlew assembleRelease bundleRelease --no-daemon --stacktrace \
             -PorbitVersionCode=${{ needs.version.outputs.code }} \
             -PorbitVersionName=${{ needs.version.outputs.name }}
 
@@ -162,14 +252,21 @@ jobs:
           APK=android/app/build/outputs/apk/release/app-release.apk
           APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner
           "$APKSIGNER" verify --print-certs "$APK"
-          mkdir -p out
+          mkdir -p out store
           cp "$APK" out/Orbit-Android.apk
           (cd out && sha256sum Orbit-Android.apk > Orbit-Android.apk.sha256)
+          cp android/app/build/outputs/bundle/release/app-release.aab store/Orbit-Android-Play.aab
 
       - uses: actions/upload-artifact@v7
         with:
           name: orbit-android
           path: mobile/out/*
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: store-android-aab
+          path: mobile/store/Orbit-Android-Play.aab
           if-no-files-found: error
 
   release:

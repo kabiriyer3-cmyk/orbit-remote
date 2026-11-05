@@ -180,8 +180,6 @@ public class OrbitNativePlugin extends Plugin {
         getActivity().runOnUiThread(() -> {
             Window window = getActivity().getWindow();
             WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
-            controller.setAppearanceLightStatusBars(false);
-            controller.setAppearanceLightNavigationBars(false);
             if (enabled) {
                 controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
                 controller.hide(WindowInsetsCompat.Type.systemBars());

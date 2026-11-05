@@ -35,7 +35,7 @@ class Tray:
                 pystray.MenuItem("Disconnect everyone", lambda: self._disconnect_all()),
                 pystray.MenuItem("Quit Orbit", lambda: self._on_quit()),
             )
-            self.icon = pystray.Icon("orbit", image, "Orbit — ready for connections", menu)
+            self.icon = pystray.Icon("orbit", image, "Orbit: ready for connections", menu)
             threading.Thread(target=self.icon.run, name="orbit-tray", daemon=True).start()
             return True
         except Exception as exc:
@@ -118,7 +118,7 @@ def run_ui(core, url: str, start_hidden: bool = False, smoke: float | None = Non
             width=1080,
             height=720,
             min_size=(860, 580),
-            background_color="#08090A",
+            background_color=winutil.window_background(),
             hidden=start_hidden,
             text_select=False,
         )
@@ -135,9 +135,9 @@ def run_ui(core, url: str, start_hidden: bool = False, smoke: float | None = Non
             try:
                 handle = window.native.Handle
                 hwnd = int(handle.ToInt64()) if hasattr(handle, "ToInt64") else int(handle)
-                winutil.dark_title_bar(hwnd)
+                winutil.match_title_bar(hwnd)
             except Exception as exc:
-                log.debug("dark title bar: %s", exc)
+                log.debug("title bar theme: %s", exc)
 
         window.events.closing += on_closing
         window.events.shown += on_shown

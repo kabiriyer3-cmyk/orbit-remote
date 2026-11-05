@@ -105,6 +105,7 @@ class HostCore:
             "demo": self.demo,
             "platform": sys.platform,
             "admin": winutil.is_admin(),
+            "packaged": winutil.is_packaged(),
             "input": getattr(self.input, "name", "unknown"),
             "settings": {
                 "requireApproval": bool(self.config.get("require_approval")),
@@ -211,7 +212,7 @@ class HostCore:
 
     def remove_session(self, session: "Session", reason: str = "") -> None:
         if self.sessions.pop(session.id, None) is not None:
-            suffix = f" — {reason}" if reason else ""
+            suffix = f" ({reason.lower()})" if reason else ""
             self.log(f"{session.device} disconnected{suffix}", "disconnect")
 
     async def request_approval(self, session: "Session", wants_trust: bool) -> tuple[bool, bool]:
@@ -220,7 +221,7 @@ class HostCore:
         self.pending[req.id] = req
         self.log(f"{session.device} ({session.remote}) is asking for access", "request")
         self.call_ui("attention")
-        self.call_ui("notify", "Orbit — access request", f"{session.device} wants to control this PC")
+        self.call_ui("notify", "Orbit: access request", f"{session.device} wants to control this PC")
         try:
             assert req.future is not None
             return await asyncio.wait_for(asyncio.shield(req.future), APPROVAL_TIMEOUT)
@@ -275,6 +276,8 @@ class HostCore:
             self._apply_settings(data.get("values") or {})
         elif action == "autostart":
             winutil.set_autostart(bool(data.get("value")))
+        elif action == "startup_settings":
+            winutil.open_startup_settings()
         elif action == "firewall":
             ok = winutil.add_firewall_rules(self.port, DISCOVERY_PORT)
             self.log("Firewall rule requested" if ok else "Firewall rule was not added", "security")

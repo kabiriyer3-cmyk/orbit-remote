@@ -23,7 +23,7 @@ def _fix_stdio() -> None:
 
 
 def _parse(argv):
-    p = argparse.ArgumentParser(prog="orbit", description="Orbit host — control this PC from your phone.")
+    p = argparse.ArgumentParser(prog="orbit", description="Orbit host: control this PC from your phone.")
     p.add_argument("--port", type=int, help="TCP port (default 47800)")
     p.add_argument("--headless", action="store_true", help="run without a window")
     p.add_argument("--demo", action="store_true", help="synthetic screen and no real input (development)")
@@ -117,7 +117,7 @@ def main(argv=None) -> int:
         server.start()
     except OSError as exc:
         log.error("cannot listen on port %s: %s", port, exc)
-        _message_box(f"Orbit can't use port {port} — another app is using it.\n\n{exc}")
+        _message_box(f"Orbit can't use port {port} because another app is using it.\n\n{exc}")
         return 2
 
     try:
@@ -129,7 +129,7 @@ def main(argv=None) -> int:
     try:
         if args.headless:
             addresses = ", ".join(f"{ip}:{server.port}" for ip in core.addresses())
-            print(f"Orbit {__version__} — {core.name}")
+            print(f"Orbit {__version__}, {core.name}")
             print(f"  Address:      {addresses}")
             print(f"  Session code: {core.code}")
             print(f"  Security key: {core.fingerprint}")

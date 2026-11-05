@@ -18,10 +18,9 @@
         <button class="icon-btn" id="btn-about" aria-label="About Orbit" data-icon="info"></button>
       </header>
 
-      <section class="hero">
-        <div class="eyebrow"><span class="dot dot-accent"></span>Remote control for Windows</div>
-        <h1>Your PC, in your pocket.</h1>
-        <p class="muted">Open <b>Orbit</b> on your Windows PC, then enter the address and session code it shows.</p>
+      <section class="intro">
+        <h1>Connect to a PC</h1>
+        <p>Open Orbit on the computer. Its window shows the address and a six-digit code.</p>
       </section>
 
       <form class="card connect-card" id="connect-form" autocomplete="off" novalidate>
@@ -43,12 +42,12 @@
           <span class="switch"></span>
           <span class="switch-text"><b>Remember this PC</b><small>Reconnect later without a code</small></span>
         </label>
-        <button class="btn btn-primary btn-block" id="btn-connect" type="submit"><span>Connect</span><kbd>↵</kbd></button>
+        <button class="btn btn-primary btn-block" id="btn-connect" type="submit"><span>Connect</span></button>
       </form>
 
       <section class="list-section" id="section-nearby">
         <div class="section-head">
-          <h2>On this network</h2>
+          <h2>On this Wi‑Fi</h2>
           <button class="text-btn" id="btn-scan" type="button" data-icon="radar"><span>Scan</span></button>
         </div>
         <div class="list" id="list-nearby"></div>
@@ -59,11 +58,7 @@
         <div class="list" id="list-recent"></div>
       </section>
 
-      <footer class="foot">
-        <span data-icon="shieldCheck">End-to-end encrypted</span>
-        <span class="sep"></span>
-        <span id="app-version">v1.0.0</span>
-      </footer>
+      <footer class="foot"><span id="app-version">v1.0.0</span></footer>
     </main>
 
     <!-- ───────────── Session ───────────── -->
@@ -83,8 +78,8 @@
           <span class="hud-stats" id="hud-stats">— fps</span>
         </div>
         <div class="hud-actions">
-          <button class="icon-btn glass" id="btn-monitors" aria-label="Displays" data-icon="monitor"></button>
-          <button class="icon-btn glass" id="btn-fullscreen" aria-label="Hide controls" data-icon="expand"></button>
+          <button class="icon-btn hud-btn" id="btn-monitors" aria-label="Displays" data-icon="monitor"></button>
+          <button class="icon-btn hud-btn" id="btn-fullscreen" aria-label="Hide controls" data-icon="expand"></button>
         </div>
       </div>
 

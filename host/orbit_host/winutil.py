@@ -1,8 +1,9 @@
-"""Small Windows helpers: DPI awareness, elevation, firewall, autostart, dark title bar."""
+"""Small Windows helpers: DPI awareness, elevation, firewall, autostart, title bar theme, MSIX detection."""
 
 from __future__ import annotations
 
 import ctypes
+import functools
 import logging
 import os
 import subprocess
@@ -104,7 +105,34 @@ def set_autostart(enabled: bool) -> bool:
         return False
 
 
-def dark_title_bar(hwnd: int) -> None:
+def open_startup_settings() -> None:
+    """Store build: startup is a package StartupTask the user switches on in Settings."""
+    if IS_WINDOWS:
+        try:
+            os.startfile("ms-settings:startupapps")
+        except OSError as exc:
+            log.warning("could not open Startup apps settings: %s", exc)
+
+
+def window_background() -> str:
+    return "#08090A"
+
+
+@functools.lru_cache(maxsize=1)
+def is_packaged() -> bool:
+    """True when running from an MSIX package (Microsoft Store build)."""
+    if not IS_WINDOWS:
+        return False
+    try:
+        length = ctypes.c_uint32(0)
+        # ERROR_INSUFFICIENT_BUFFER (122) means there is a package identity; 15700 means there isn't.
+        return ctypes.windll.kernel32.GetCurrentPackageFullName(ctypes.byref(length), None) == 122
+    except Exception:
+        return False
+
+
+def match_title_bar(hwnd: int) -> None:
+    """Dark title bar whose colour matches the window (Windows 11 also takes the caption colour)."""
     if not IS_WINDOWS or not hwnd:
         return
     value = ctypes.c_int(1)
@@ -116,8 +144,8 @@ def dark_title_bar(hwnd: int) -> None:
                 break
         except Exception:
             pass
-    try:  # Windows 11 caption colour that matches the UI background
-        color = ctypes.c_int(0x000B0A09)
+    try:  # DWMWA_CAPTION_COLOR, COLORREF 0x00BBGGRR
+        color = ctypes.c_int(0x000A0908)  # #08090A
         ctypes.windll.dwmapi.DwmSetWindowAttribute(ctypes.c_void_p(hwnd), 35, ctypes.byref(color), 4)
     except Exception:
         pass

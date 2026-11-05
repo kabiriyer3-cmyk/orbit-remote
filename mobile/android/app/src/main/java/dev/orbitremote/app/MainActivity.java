@@ -49,6 +49,14 @@ public class MainActivity extends BridgeActivity {
         ViewCompat.requestApplyInsets(decor);
     }
 
+    /** The UI is dark, so system bar icons are always light. */
+    private void applySystemBarIcons() {
+        Window window = getWindow();
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
+        controller.setAppearanceLightStatusBars(false);
+        controller.setAppearanceLightNavigationBars(false);
+    }
+
     @SuppressWarnings("deprecation")
     private void setupWindow() {
         Window window = getWindow();
@@ -66,9 +74,7 @@ public class MainActivity extends BridgeActivity {
                 : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
             window.setAttributes(lp);
         }
-        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
-        controller.setAppearanceLightStatusBars(false);
-        controller.setAppearanceLightNavigationBars(false);
+        applySystemBarIcons();
 
         View decor = window.getDecorView();
         ViewCompat.setOnApplyWindowInsetsListener(decor, (v, insets) -> {

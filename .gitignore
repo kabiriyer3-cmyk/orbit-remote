@@ -33,3 +33,11 @@ signing/
 Thumbs.db
 .vscode/
 .idea/
+
+# Store packages and signing output
+host/signed/
+host/store/
+mobile/store/
+*.pfx
+*.msix
+*.aab

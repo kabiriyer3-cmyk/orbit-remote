@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="orbit_bg">#08090A</color>
-    <color name="orbit_accent">#7170FF</color>
+    <color name="orbit_accent">#5E6AD2</color>
 </resources>
