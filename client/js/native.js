@@ -23,6 +23,14 @@ export const native = {
   openTunnel(host, port, pin) { return call('openTunnel', { host, port: Number(port), pin }); },
   keepAwake(enabled) { return call('keepAwake', { enabled }).catch(() => {}); },
   immersive(enabled) { return call('setImmersive', { enabled }).catch(() => {}); },
+  async syncInsets() {
+    if (!isNative) return;
+    try {
+      const i = await call('getInsets');
+      const st = document.documentElement.style;
+      for (const k of ['top', 'right', 'bottom', 'left']) st.setProperty(`--orbit-inset-${k}`, `${Math.max(0, Number(i[k]) || 0)}px`);
+    } catch { /* older shell: CSS env() fallback */ }
+  },
   haptic() {
     return call('haptic').catch(() => { if (navigator.vibrate) navigator.vibrate(8); });
   },

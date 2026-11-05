@@ -193,6 +193,17 @@ public class OrbitNativePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void getInsets(PluginCall call) {
+        int[] i = MainActivity.lastInsets;
+        JSObject res = new JSObject();
+        res.put("top", i[0]);
+        res.put("right", i[1]);
+        res.put("bottom", i[2]);
+        res.put("left", i[3]);
+        call.resolve(res);
+    }
+
+    @PluginMethod
     public void haptic(PluginCall call) {
         final String kind = call.getString("kind", "light");
         getActivity().runOnUiThread(() -> {

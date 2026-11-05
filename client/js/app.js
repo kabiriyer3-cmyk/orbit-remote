@@ -117,7 +117,7 @@ function ago(ts) {
 function hostRow(h, extra = '') {
   return `<div class="row" role="button" tabindex="0" data-id="${esc(h.id)}" data-address="${esc(h.address)}" data-port="${h.port}">
     <span class="row-icon">${icon('monitor')}</span>
-    <span class="row-main"><span class="row-title">${esc(h.name || 'PC')}</span>
+    <span class="row-main"><span class="row-title-line"><span class="row-title">${esc(h.name || 'PC')}</span>${h.token ? `<span class="trust-ic" title="Trusted" aria-label="Trusted">${icon('shieldCheck')}</span>` : ''}</span>
       <span class="row-sub">${esc(formatAddress(h.address, h.port))}${extra}</span></span>
     <span class="row-end">${h.token ? `<span class="badge badge-accent">${icon('shieldCheck')}Trusted</span>` : ''}
       ${h.more ? `<button class="icon-btn" data-more="${esc(h.id)}" aria-label="Options">${icon('more')}</button>` : icon('chevronRight')}</span>
@@ -727,6 +727,7 @@ document.addEventListener('visibilitychange', () => {
   else { s.resume(); native.immersive(true); }
 });
 
+native.syncInsets();
 renderRecent();
 renderNearby([]);
 if (isNative) scan();
