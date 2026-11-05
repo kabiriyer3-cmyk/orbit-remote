@@ -16,7 +16,7 @@ Co-authored-by: Claude <noreply@anthropic.com>
 
 - Строка пишется ровно так, последней в сообщении коммита. Тогда GitHub показывает Claude соавтором.
 - Не забывайте её при `git commit --amend`, squash и в коммитах слияния PR.
-- Перед `git push` проверьте: `git log -1 --format=%B | tail -1`.
+- Перед `git push` проверьте: `git log -1 --format='%(trailers:key=Co-authored-by)'` должен вывести строку с Claude.
 
 ## Что это
 
